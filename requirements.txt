@@ -1,0 +1,3 @@
+deeplake
+deeplake[audio]
+librosa
