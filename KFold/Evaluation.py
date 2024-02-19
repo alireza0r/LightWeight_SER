@@ -1,21 +1,3 @@
-import torch
-import torch.nn as nn
-import numpy as np
-from time import time
-import os
-import datetime
-import matplotlib.pyplot as plt
-import sys
-import pandas as pd
-import pickle
-import copy
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-import seaborn as sns
-import matplotlib.pyplot as plt
-#from scipy.interpolate import interp1d
-from scipy.interpolate import make_interp_spline
-
-
 #CSV structure:
 #columns=['Epoch', 'Time', 'Acc', 'Loss', 'ValAcc', 'ValLoss', 'Weights saved', 'FoldName', 'FileName']
 
@@ -30,6 +12,11 @@ class ValidateKFoldModelOfDetails():
     assert len(self.GetUnacceptableFold())==0, 'At least there is one unacceptable fold, fold without any saving weights'
 
     self.index_details_dict = self.LoadDataIndex()
+
+    print('Warning -------####****')
+    self.index_details_dict['Valid_split_size'] = 0.0 # Problem from trainer
+
+
     self.learning_result = self.LoadLearningResult()
     self.save_result_path = os.path.normpath(path).split('/')[-1]
     #print(self.save_result_path)
@@ -98,7 +85,7 @@ class ValidateKFoldModelOfDetails():
     for f in self.folds_name:
       try:
         resut = self.FindBestValidInFold(f)
-        best_weight_dict[f] = resut.FileName
+        best_weight_dict[f] = os.path.join(*((resut.FileName).split('/')[-2:])) # ERROR here ***********
         epoch_selected_in_fold_dict[f] = resut.Epoch
       except:
         best_weight_dict[f] = []
@@ -122,6 +109,9 @@ class ValidateKFoldModelOfDetails():
     return self.model
 
   def Eval(self, X, Y, batch_size=32):
+    if len(X)==0 or len(Y)==0:
+      print('Evaluation coudn\'t be done: len(X),len(Y)=0')
+      return -1, -1
     #print('Eval')
     self.model.eval()
 
@@ -152,10 +142,45 @@ class ValidateKFoldModelOfDetails():
 
     y_pred_categorical = []
     for x in X:
-      y_pred_categorical.append(torch.argmax(model(torch.unsqueeze(x, 0))).type(torch.int8))
+      y_pred_categorical.append(torch.argmax(self.model(torch.unsqueeze(x, 0))).type(torch.int8))
 
     y_pred_categorical = torch.stack(y_pred_categorical, dim=0)
     return y_pred_categorical
+
+  def PredAllDataInFold(self, X, fold):
+    # Load best weight in the specific fold
+    self.LoadBestWeightIntoModelInSpecificFold(fold)
+
+    #train_index_in_fold = self.index_details_dict['Folds'][fold][0] # [0] -> train , [1] -> test
+    #valid_split_size_in_fold = self.index_details_dict['Valid_split_size']
+
+    #train_size = int(len(train_index_in_fold)*(1-valid_split_size_in_fold))
+    #train_index_in_fold, valid_index_in_fold = train_index_in_fold[:train_size], train_index_in_fold[train_size:]
+    #test_index_in_fold = self.index_details_dict['Folds'][fold][1]
+
+    train_index_in_fold = self.GetData(fold, 'train')
+    valid_index_in_fold = self.GetData(fold, 'valid')
+    test_index_in_fold = self.GetData(fold, 'test')
+
+    result = {}
+
+    if len(train_index_in_fold)==0:
+      print('Warning: There were not enogth Train data to predict...')
+    else:
+      train_categorical_pred = self.Prediction(X[train_index_in_fold])
+      result['train_categorical_pred'] = train_categorical_pred
+    if len(valid_index_in_fold)==0:
+      print('Warning: There were not enogth Valid data to predict...')
+    else:
+      valid_categorical_pred = self.Prediction(X[valid_index_in_fold])
+      result['valid_categorical_pred'] = valid_categorical_pred
+    if len(test_index_in_fold)==0:
+      print('Warning: There were not enogth Test data to predict...')
+    else:
+      test_categorical_pred = self.Prediction(X[test_index_in_fold])
+      result['test_index_in_fold'] = test_categorical_pred
+
+    return result
 
   def PredAllDataInAllFold(self, X):
     #print('PredAllDataInAllFold')
@@ -178,13 +203,31 @@ class ValidateKFoldModelOfDetails():
       valid_index_in_fold = self.GetData(fold, 'valid')
       test_index_in_fold = self.GetData(fold, 'test')
 
-      train_categorical_pred = self.Prediction(X[train_index_in_fold])
-      valid_categorical_pred = self.Prediction(X[valid_index_in_fold])
-      test_categorical_pred = self.Prediction(X[test_index_in_fold])
+      result[fold] = {}
 
-      result[fold] = {'train_categorical_pred':train_categorical_pred,
-                      'valid_categorical_pred':valid_categorical_pred,
-                      'test_index_in_fold':test_categorical_pred}
+      if len(train_index_in_fold)==0:
+        print('Warning: There were not enogth Train data to predict...')
+      else:
+        train_categorical_pred = self.Prediction(X[train_index_in_fold])
+        result[fold]['train_categorical_pred'] = train_categorical_pred
+      if len(valid_index_in_fold)==0:
+        print('Warning: There were not enogth Valid data to predict...')
+      else:
+        valid_categorical_pred = self.Prediction(X[valid_index_in_fold])
+        result[fold]['valid_categorical_pred'] = valid_categorical_pred
+      if len(test_index_in_fold)==0:
+        print('Warning: There were not enogth Test data to predict...')
+      else:
+        test_categorical_pred = self.Prediction(X[test_index_in_fold])
+        result[fold]['test_index_in_fold'] = test_categorical_pred
+
+      # train_categorical_pred = self.Prediction(X[train_index_in_fold])
+      # valid_categorical_pred = self.Prediction(X[valid_index_in_fold])
+      # test_categorical_pred = self.Prediction(X[test_index_in_fold])
+
+      # result[fold] = {'train_categorical_pred':train_categorical_pred,
+      #                 'valid_categorical_pred':valid_categorical_pred,
+      #                 'test_index_in_fold':test_categorical_pred}
     return result
 
   def EvalModelInAllFold(self, X, Y):
@@ -267,23 +310,36 @@ class ValidateKFoldModelOfDetails():
       #train_index_in_fold, valid_index_in_fold = train_index_in_fold[:int(train_size)], train_index_in_fold[int(train_size):]
       #test_index_in_fold = self.index_details_dict['Folds'][fold][1]
 
-      train_index_in_fold = self.GetData(fold, 'train')
-      valid_index_in_fold = self.GetData(fold, 'valid')
-      test_index_in_fold = self.GetData(fold, 'test')
+      result[fold] = {}
+      for s, s_label, s_cm in zip(['train', 'valid', 'test'], ['train_categorical_pred', 'valid_categorical_pred', 'test_index_in_fold'], ['cm_train', 'cm_valid', 'cm_test']):
+        index_in_fold = self.GetData(fold, s)
+        if len(index_in_fold)==0:
+          print('---> Warning there were not any data in the', s, 'part to draw confusion matrix!')
+          continue
 
-      Y_tarin_in_fold = torch.argmax(Y[train_index_in_fold], -1).type(torch.int8)
-      Y_valid_in_fold = torch.argmax(Y[valid_index_in_fold], -1).type(torch.int8)
-      Y_test_in_fold = torch.argmax(Y[test_index_in_fold], -1).type(torch.int8)
+        Y_in_fold = torch.argmax(Y[index_in_fold], -1).type(torch.int8)
+        pred = pred_result[fold][s_label]
 
-      train_pred = pred_result[fold]['train_categorical_pred']
-      valid_pred = pred_result[fold]['valid_categorical_pred']
-      test_pred = pred_result[fold]['test_index_in_fold']
+        cm = confusion_matrix(Y_in_fold.cpu().numpy(), pred.cpu().numpy(), normalize=normalize)
+        result[fold][s_cm] = cm
 
-      cm_train = confusion_matrix(Y_tarin_in_fold.cpu().numpy(), train_pred.cpu().numpy(), normalize=normalize)
-      cm_valid = confusion_matrix(Y_valid_in_fold.cpu().numpy(), valid_pred.cpu().numpy(), normalize=normalize)
-      cm_test = confusion_matrix(Y_test_in_fold.cpu().numpy(), test_pred.cpu().numpy(), normalize=normalize)
+      # train_index_in_fold = self.GetData(fold, 'train')
+      # valid_index_in_fold = self.GetData(fold, 'valid')
+      # test_index_in_fold = self.GetData(fold, 'test')
 
-      result[fold] = {'cm_train':cm_train, 'cm_valid':cm_valid, 'cm_test':cm_test}
+      # Y_tarin_in_fold = torch.argmax(Y[train_index_in_fold], -1).type(torch.int8)
+      # Y_valid_in_fold = torch.argmax(Y[valid_index_in_fold], -1).type(torch.int8)
+      # Y_test_in_fold = torch.argmax(Y[test_index_in_fold], -1).type(torch.int8)
+
+      # train_pred = pred_result[fold]['train_categorical_pred']
+      # valid_pred = pred_result[fold]['valid_categorical_pred']
+      # test_pred = pred_result[fold]['test_index_in_fold']
+
+      # cm_train = confusion_matrix(Y_tarin_in_fold.cpu().numpy(), train_pred.cpu().numpy(), normalize=normalize)
+      # cm_valid = confusion_matrix(Y_valid_in_fold.cpu().numpy(), valid_pred.cpu().numpy(), normalize=normalize)
+      # cm_test = confusion_matrix(Y_test_in_fold.cpu().numpy(), test_pred.cpu().numpy(), normalize=normalize)
+
+      # result[fold] = {'cm_train':cm_train, 'cm_valid':cm_valid, 'cm_test':cm_test}
 
     return result
 
@@ -295,31 +351,40 @@ class ValidateKFoldModelOfDetails():
 
     cm = []
     for fold in self.folds_name:
+      if 'cm_train' not in cm_result_in_all_fold[fold].keys():
+        break
       cm.append(cm_result_in_all_fold[fold]['cm_train'])
 
-    cm = np.mean(cm, axis=0)
-    print(cm.shape)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label)
-    disp.plot(ax=ax[0], xticks_rotation=45, colorbar=False, values_format='.1f')
-    ax[0].set_title('Mean, Train')
+    if len(cm) != 0:
+      cm = np.mean(cm, axis=0)
+      print(cm.shape)
+      disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label)
+      disp.plot(ax=ax[0], xticks_rotation=45, colorbar=False, values_format='.2f')
+      ax[0].set_title('Mean, Train')
 
     cm = []
     for fold in self.folds_name:
+      if 'cm_valid' not in cm_result_in_all_fold[fold].keys():
+        break
       cm.append(cm_result_in_all_fold[fold]['cm_valid'])
 
-    cm = np.mean(cm, axis=0)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label)
-    disp.plot(ax=ax[1], xticks_rotation=45, colorbar=False, values_format='.1f')
-    ax[1].set_title('Mean, Valid')
+    if len(cm) != 0:
+      cm = np.mean(cm, axis=0)
+      disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label)
+      disp.plot(ax=ax[1], xticks_rotation=45, colorbar=False, values_format='.2f')
+      ax[1].set_title('Mean, Valid')
 
     cm = []
     for fold in self.folds_name:
+      if 'cm_test' not in cm_result_in_all_fold[fold].keys():
+        break
       cm.append(cm_result_in_all_fold[fold]['cm_test'])
 
-    cm = np.mean(cm, axis=0)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label)
-    disp.plot(ax=ax[2], xticks_rotation=45, colorbar=False, values_format='.1f')
-    ax[2].set_title('Mean, Test')
+    if len(cm) != 0:
+      cm = np.mean(cm, axis=0)
+      disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label)
+      disp.plot(ax=ax[2], xticks_rotation=45, colorbar=False, values_format='.2f')
+      ax[2].set_title('Mean, Test')
 
     if save_path != '':
       save_path = os.path.join(save_path, self.save_result_path)
@@ -327,7 +392,18 @@ class ValidateKFoldModelOfDetails():
       plt.savefig(os.path.join(save_path, 'Mean_Confusion_matrix.svg'), format="svg")
 
   def PlotFoldConfusionMatrix(self, X, Y, fold, label, normalize='true', figsize=(22,7), save_path=''):
-    pred_result = self.PredAllDataInAllFold(X=X)
+    def do(s, s_Pred, index_in_fold, ax):
+      Y_in_fold = torch.argmax(Y[index_in_fold], -1).type(torch.int8)
+      pred = pred_result[s_Pred]
+
+      print(s, 'ACC: {:.03f}%'.format(torch.sum(pred == Y_in_fold)/pred.size(0)*100))
+
+      cm = confusion_matrix(Y_in_fold.cpu().numpy(), pred.cpu().numpy(), normalize=normalize)
+      disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label)
+      disp.plot(ax=ax, xticks_rotation=45, colorbar=False)
+      ax.set_title(s + ' ' + fold)
+
+    pred_result = self.PredAllDataInFold(X=X, fold=fold)
 
     #train_size = len(self.index_details_dict['Folds'][fold][0])
     #valid_size = train_size * self.index_details_dict['Valid_split_size']
@@ -341,35 +417,45 @@ class ValidateKFoldModelOfDetails():
     valid_index_in_fold = self.GetData(fold, 'valid')
     test_index_in_fold = self.GetData(fold, 'test')
 
-    Y_tarin_in_fold = torch.argmax(Y[train_index_in_fold], -1).type(torch.int8)
-    Y_valid_in_fold = torch.argmax(Y[valid_index_in_fold], -1).type(torch.int8)
-    Y_test_in_fold = torch.argmax(Y[test_index_in_fold], -1).type(torch.int8)
-
-    train_pred = pred_result[fold]['train_categorical_pred']
-    valid_pred = pred_result[fold]['valid_categorical_pred']
-    test_pred = pred_result[fold]['test_index_in_fold']
-
-    print('Train ACC: {:.03f}%'.format(torch.sum(train_pred == Y_tarin_in_fold)/train_pred.size(0)*100))
-    print('Valid ACC: {:.03f}%'.format(torch.sum(valid_pred == Y_valid_in_fold)/valid_pred.size(0)*100))
-    print(' Test ACC: {:.03f}%'.format(torch.sum(test_pred == Y_test_in_fold)/test_pred.size(0)*100))
-
     fig, ax = plt.subplots(1,3, figsize=figsize)
     plt.grid(False)
 
-    cm = confusion_matrix(Y_tarin_in_fold.cpu().numpy(), train_pred.cpu().numpy(), normalize=normalize)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label)
-    disp.plot(ax=ax[0], xticks_rotation=45, colorbar=False)
-    ax[0].set_title('Train ' + fold)
+    if len(train_index_in_fold) != 0:
+      do('Train', 'train_categorical_pred', train_index_in_fold, ax[0])
+    if len(valid_index_in_fold) != 0:
+      do('Valid', 'valid_categorical_pred', valid_index_in_fold, ax[1])
+    if len(test_index_in_fold) != 0:
+      do('Test', 'test_index_in_fold', test_index_in_fold, ax[2])
 
-    cm = confusion_matrix(Y_valid_in_fold.cpu().numpy(), valid_pred.cpu().numpy(), normalize=normalize)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label)
-    disp.plot(ax=ax[1], xticks_rotation=45, colorbar=False)
-    ax[1].set_title('Valid ' + fold)
+    # Y_tarin_in_fold = torch.argmax(Y[train_index_in_fold], -1).type(torch.int8)
+    # Y_valid_in_fold = torch.argmax(Y[valid_index_in_fold], -1).type(torch.int8)
+    # Y_test_in_fold = torch.argmax(Y[test_index_in_fold], -1).type(torch.int8)
 
-    cm = confusion_matrix(Y_test_in_fold.cpu().numpy(), test_pred.cpu().numpy(), normalize=normalize)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label)
-    disp.plot(ax=ax[2], xticks_rotation=45, colorbar=False)
-    ax[2].set_title('Test ' + fold)
+    # train_pred = pred_result['train_categorical_pred']
+    # valid_pred = pred_result['valid_categorical_pred']
+    # test_pred = pred_result['test_index_in_fold']
+
+    # print('Train ACC: {:.03f}%'.format(torch.sum(train_pred == Y_tarin_in_fold)/train_pred.size(0)*100))
+    # print('Valid ACC: {:.03f}%'.format(torch.sum(valid_pred == Y_valid_in_fold)/valid_pred.size(0)*100))
+    # print(' Test ACC: {:.03f}%'.format(torch.sum(test_pred == Y_test_in_fold)/test_pred.size(0)*100))
+
+    # fig, ax = plt.subplots(1,3, figsize=figsize)
+    # plt.grid(False)
+
+    # cm = confusion_matrix(Y_tarin_in_fold.cpu().numpy(), train_pred.cpu().numpy(), normalize=normalize)
+    # disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label)
+    # disp.plot(ax=ax[0], xticks_rotation=45, colorbar=False)
+    # ax[0].set_title('Train ' + fold)
+
+    # cm = confusion_matrix(Y_valid_in_fold.cpu().numpy(), valid_pred.cpu().numpy(), normalize=normalize)
+    # disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label)
+    # disp.plot(ax=ax[1], xticks_rotation=45, colorbar=False)
+    # ax[1].set_title('Valid ' + fold)
+
+    # cm = confusion_matrix(Y_test_in_fold.cpu().numpy(), test_pred.cpu().numpy(), normalize=normalize)
+    # disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label)
+    # disp.plot(ax=ax[2], xticks_rotation=45, colorbar=False)
+    # ax[2].set_title('Test ' + fold)
 
     if save_path != '':
       save_path = os.path.join(save_path, self.save_result_path)
@@ -489,3 +575,4 @@ class ValidateKFoldModelOfDetails():
     for s_point in range(len(x)-window_len+1):
       x_avg.append(np.mean(x[s_point:s_point + window_len]))
     return x_avg
+
