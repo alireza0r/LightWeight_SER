@@ -7,6 +7,22 @@ import librosa
 import numpy as np
 import matplotlib.pyplot as plt
 
+def load_local(wav_path, sr, label_loc, label_dict):
+    emotions = []
+    raw = []
+    length = []
+    files = os.listdir(wav_path)
+    for i, f in enumerate(files):
+        try:
+            f = os.path.join(wav_path, f)
+            r = librosa.load(f, sr)
+            raw.append(r)
+            emotions.append(label_dict[f[label_loc]])
+            length.append(len(r))
+        except:
+            print(i, 'error')
+    return raw, emotions, length
+
 def load_data(name="hub://activeloop/ravdess-emotional-speech-audio"):
     repetition = 1
     ds = deeplake.load(name)
