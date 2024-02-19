@@ -1,4 +1,4 @@
-from Libs.util import *
+from util import *
 
 def do_preprocess():
   raw, label, length = load_data()
