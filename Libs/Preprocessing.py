@@ -1,4 +1,4 @@
-from util import *
+from utils import *
 
 def do_preprocess():
   raw, label, length = load_data()
