@@ -13,7 +13,7 @@ class ValidateKFoldModelOfDetails():
 
     self.index_details_dict = self.LoadDataIndex()
 
-    print('Warning -------####****')
+    print('Warning ----- Go to line 17')
     self.index_details_dict['Valid_split_size'] = 0.0 # Problem from trainer
 
 
