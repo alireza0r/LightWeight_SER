@@ -7,7 +7,6 @@ import librosa
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-import librosa
 
 def load_local(wav_path, sr, label_loc, label_dict):
     emotions = []
