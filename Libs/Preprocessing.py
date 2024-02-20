@@ -2,7 +2,7 @@ from utils import *
 
 def do_preprocess():
   raw, label, length = load_data()
-  mels = mel_extract(raws=raw, max_size=max(length))
+  mels = mel_extract(raws=raw, sr=sr, max_size=max(length))
 
   max_label = np.max(label)
   min_label = np.min(label)
@@ -16,7 +16,7 @@ def do_preprocess():
 
 def do_local_preprocess(wav_path, sr, label_loc, label_dict):
   raw, label, length = load_local(wav_path, sr, label_loc, label_dict)
-  mels = mel_extract(raws=raw, max_size=max(length))
+  mels = mel_extract(raws=raw, sr=sr, max_size=max(length))
 
   max_label = np.max(label)
   min_label = np.min(label)
