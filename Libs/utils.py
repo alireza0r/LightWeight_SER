@@ -15,8 +15,8 @@ def load_local(wav_path, sr, label_loc, label_dict):
     files = os.listdir(wav_path)
     for i, f in enumerate(files):
         try:
-            f = os.path.join(wav_path, f)
-            r = librosa.load(f, sr)
+            path = os.path.join(wav_path, f)
+            r = librosa.load(path, sr)
             raw.append(r)
             emotions.append(label_dict[f[label_loc]])
             length.append(len(r))
