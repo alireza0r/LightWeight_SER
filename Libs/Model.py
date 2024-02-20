@@ -85,17 +85,17 @@ class FeatureExtraction(nn.Module):
 
 
 class BottleNeck(nn.Module):
-  def __init__(self):
+  def __init__(self, embed_dim=116, dropout=0.2, ch_features=256):
     super().__init__()
 
-    self.MHead1 = nn.MultiheadAttention(116, 4, dropout=0.2, batch_first=True)
-    self.BNorm1 = nn.BatchNorm1d(256)
-    self.MHead2 = nn.MultiheadAttention(116, 4, dropout=0.2, batch_first=True)
-    self.BNorm2 = nn.BatchNorm1d(256)
-    self.MHead3 = nn.MultiheadAttention(116, 2, dropout=0.2, batch_first=True)
-    self.BNorm3 = nn.BatchNorm1d(256)
-    self.MHead4 = nn.MultiheadAttention(116, 2, dropout=0.2, batch_first=True)
-    self.BNorm4 = nn.BatchNorm1d(256)
+    self.MHead1 = nn.MultiheadAttention(embed_dim, 4, dropout=dropout, batch_first=True)
+    self.BNorm1 = nn.BatchNorm1d(ch_features)
+    self.MHead2 = nn.MultiheadAttention(embed_dim, 4, dropout=dropout, batch_first=True)
+    self.BNorm2 = nn.BatchNorm1d(ch_features)
+    self.MHead3 = nn.MultiheadAttention(embed_dim, 2, dropout=dropout, batch_first=True)
+    self.BNorm3 = nn.BatchNorm1d(ch_features)
+    self.MHead4 = nn.MultiheadAttention(embed_dim, 2, dropout=dropout, batch_first=True)
+    self.BNorm4 = nn.BatchNorm1d(ch_features)
 
     self.max2 = nn.MaxPool1d(2,2)
 
