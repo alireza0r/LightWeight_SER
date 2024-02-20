@@ -35,7 +35,7 @@ class ValidateKFoldModelOfDetails():
 
 
     self.learning_result = self.LoadLearningResult()
-    self.save_result_path = os.path.normpath(path).split('/')[-1]
+    self.save_result_path = os.path.normpath(self.path).split('/')[-1]
     #print(self.save_result_path)
 
     self.model = model
@@ -48,7 +48,7 @@ class ValidateKFoldModelOfDetails():
     return report_dataframe
 
   def LoadDataIndex(self):
-    with open(os.path.join(path, 'index_dict_pickle'), 'rb') as f:
+    with open(os.path.join(self.path, 'index_dict_pickle'), 'rb') as f:
       data_index = pickle.load(f)
     return data_index
 
@@ -76,7 +76,7 @@ class ValidateKFoldModelOfDetails():
       raise Exception('Your dataset is invalid...!, your dataset must have 2 or 3 len')
 
   def LoadLearningResult(self):
-    with open(os.path.join(path, 'result_dict_pickle'), 'rb') as f:
+    with open(os.path.join(self.path, 'result_dict_pickle'), 'rb') as f:
       result = pickle.load(f)
     return result
 
