@@ -130,12 +130,12 @@ class BottleNeck(nn.Module):
 
 
 class Head(nn.Module):
-  def __init__(self):
+  def __init__(self, n_input=256*29, n_out=8):
     super().__init__()
 
     act = nn.ReLU()
 
-    F = nn.Linear(256*29, 128)
+    F = nn.Linear(n_input, 128)
     BNorm = nn.BatchNorm1d(128)
     self.FC1 = nn.Sequential(F, BNorm, act)
 
@@ -143,8 +143,8 @@ class Head(nn.Module):
     BNorm = nn.BatchNorm1d(32)
     self.FC2 = nn.Sequential(F, BNorm, act)
 
-    F = nn.Linear(32, 8)
-    BNorm = nn.BatchNorm1d(8)
+    F = nn.Linear(32, n_out)
+    BNorm = nn.BatchNorm1d(n_out)
     self.FC3 = nn.Sequential(F, BNorm)
 
     self.Sig = nn.Sigmoid()
