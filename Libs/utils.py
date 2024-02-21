@@ -43,11 +43,14 @@ def load_data(name="hub://activeloop/ravdess-emotional-speech-audio"):
 
     return raw, emotions, length
 
-def length_equality(raws, lentgh):
+def length_equality(raws, lentgh, max_lenght=None):
   new_raw = []
-  max_size = max(lentgh)
+  
+  if not isinstance(max_lenght, int):
+    max_lenght = max(lentgh)
+      
   for r, l in zip(raws, lentgh):
-    new_raw.append(librosa.util.fix_length(r, size=max_size, axis=0))
+    new_raw.append(librosa.util.fix_length(r, size=max_lenght, axis=0))
 
   return new_raw
 
