@@ -1,8 +1,12 @@
 from utils import *
 
-def do_preprocess():
+def do_preprocess(max_lenght=None):
   raw, label, length = load_data()
-  mels = mel_extract(raws=raw, sr=sr, max_size=max(length))
+
+  if not isinstance(max_lenght, int):
+    max_lenght = max(lentgh)
+  
+  mels = mel_extract(raws=raw, sr=sr, max_size=max_lenght)
 
   max_label = np.max(label)
   min_label = np.min(label)
@@ -14,9 +18,13 @@ def do_preprocess():
 
   return raw, mels, onehot_label, label, length
 
-def do_local_preprocess(wav_path, sr, label_loc, label_dict):
+def do_local_preprocess(wav_path, sr, label_loc, label_dict, max_lenght=None):
   raw, label, length = load_local(wav_path, sr, label_loc, label_dict)
-  mels = mel_extract(raws=raw, sr=sr, max_size=max(length))
+
+  if not isinstance(max_lenght, int):
+    max_lenght = max(lentgh)
+  
+  mels = mel_extract(raws=raw, sr=sr, max_size=max_lenght)
 
   max_label = np.max(label)
   min_label = np.min(label)
