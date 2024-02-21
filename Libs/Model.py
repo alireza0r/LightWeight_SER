@@ -123,8 +123,8 @@ class BottleNeck(nn.Module):
     # x = self.BNorm4(x)
     #print(x.size()) # torch.Size([32, 128, 34])
 
-    x = self.max2(x)
-    x = self.max2(x)
+    # x = self.max2(x)
+    # x = self.max2(x)
     #print(x.size()) # torch.Size([32, 128, 17])
     return x
 
