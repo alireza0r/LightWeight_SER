@@ -4,7 +4,7 @@ def do_preprocess(max_lenght=None):
   raw, label, length = load_data()
 
   if not isinstance(max_lenght, int):
-    max_lenght = max(lentgh)
+    max_lenght = max(length)
   
   mels = mel_extract(raws=raw, sr=sr, max_size=max_lenght)
 
@@ -22,7 +22,7 @@ def do_local_preprocess(wav_path, sr, label_loc, label_dict, max_lenght=None):
   raw, label, length = load_local(wav_path, sr, label_loc, label_dict)
 
   if not isinstance(max_lenght, int):
-    max_lenght = max(lentgh)
+    max_lenght = max(length)
   
   mels = mel_extract(raws=raw, sr=sr, max_size=max_lenght)
 
